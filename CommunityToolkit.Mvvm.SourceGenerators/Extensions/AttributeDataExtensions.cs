@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Contracts;
 using System.Linq;
 using Microsoft.CodeAnalysis;
@@ -38,6 +39,31 @@ internal static class AttributeDataExtensions
                     EqualityComparer<T?>.Default.Equals(argumentValue, value);
             }
         }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Tries to get a specified named argument from a given <see cref="AttributeData"/> instance.
+    /// </summary>
+    /// <typeparam name="T">The type of argument to check.</typeparam>
+    /// <param name="attributeData">The target <see cref="AttributeData"/> instance to check.</param>
+    /// <param name="name">The name of the argument to check.</param>
+    /// <param name="value">The value for the target named argument, if found.</param>
+    /// <returns>Whether or not <paramref name="attributeData"/> contains an argument named <paramref name="name"/> with the expected value.</returns>
+    public static bool TryGetNamedArgument<T>(this AttributeData attributeData, string name, out T? value)
+    {
+        foreach (KeyValuePair<string, TypedConstant> properties in attributeData.NamedArguments)
+        {
+            if (properties.Key == name)
+            {
+                value = (T?)properties.Value.Value;
+
+                return true;
+            }
+        }
+
+        value = default;
 
         return false;
     }

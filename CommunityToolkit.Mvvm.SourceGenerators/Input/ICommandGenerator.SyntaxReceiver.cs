@@ -34,9 +34,9 @@ public sealed partial class ICommandGenerator
             if (context.Node is MethodDeclarationSyntax methodDeclaration &&
                 context.SemanticModel.GetDeclaredSymbol(methodDeclaration) is IMethodSymbol methodSymbol &&
                 context.SemanticModel.Compilation.GetTypeByMetadataName("CommunityToolkit.Mvvm.Input.ICommandAttribute") is INamedTypeSymbol iCommandSymbol &&
-                methodSymbol.GetAttributes().Any(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, iCommandSymbol)))
+                methodSymbol.GetAttributes().FirstOrDefault(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, iCommandSymbol)) is AttributeData attributeData)
             {
-                this.gatheredInfo.Add(new Item(methodDeclaration.GetLeadingTrivia(), methodSymbol));
+                this.gatheredInfo.Add(new Item(methodDeclaration.GetLeadingTrivia(), methodSymbol, attributeData));
             }
         }
 
@@ -45,6 +45,7 @@ public sealed partial class ICommandGenerator
         /// </summary>
         /// <param name="LeadingTrivia">The leading trivia for the field declaration.</param>
         /// <param name="MethodSymbol">The <see cref="IMethodSymbol"/> instance for the target method.</param>
-        public sealed record Item(SyntaxTriviaList LeadingTrivia, IMethodSymbol MethodSymbol);
+        /// <param name="AttributeData">The <see cref="Microsoft.CodeAnalysis.AttributeData"/> instance for the method attribute.</param>
+        public sealed record Item(SyntaxTriviaList LeadingTrivia, IMethodSymbol MethodSymbol, AttributeData AttributeData);
     }
 }

@@ -88,7 +88,7 @@ public sealed partial class ICommandGenerator : ISourceGenerator
         ClassDeclarationSyntax? classDeclarationSyntax =
             ClassDeclaration(classDeclarationSymbol.Name)
             .WithModifiers(classDeclaration.Modifiers)
-            .AddMembers(items.Select(item => CreateCommandMembers(context, item.LeadingTrivia, item.MethodSymbol)).SelectMany(static g => g).ToArray());
+            .AddMembers(items.Select(item => CreateCommandMembers(context, item.LeadingTrivia, item.MethodSymbol, item.AttributeData)).SelectMany(static g => g).ToArray());
 
         TypeDeclarationSyntax typeDeclarationSyntax = classDeclarationSyntax;
 
@@ -129,9 +129,14 @@ public sealed partial class ICommandGenerator : ISourceGenerator
     /// <param name="context">The input <see cref="GeneratorExecutionContext"/> instance to use.</param>
     /// <param name="leadingTrivia">The leading trivia for the field to process.</param>
     /// <param name="methodSymbol">The input <see cref="IMethodSymbol"/> instance to process.</param>
+    /// <param name="attributeData">The <see cref="AttributeData"/> instance for the method attribute.</param>
     /// <returns>The <see cref="MemberDeclarationSyntax"/> instances for the input command.</returns>
     [Pure]
-    private static IEnumerable<MemberDeclarationSyntax> CreateCommandMembers(GeneratorExecutionContext context, SyntaxTriviaList leadingTrivia, IMethodSymbol methodSymbol)
+    private static IEnumerable<MemberDeclarationSyntax> CreateCommandMembers(
+        GeneratorExecutionContext context,
+        SyntaxTriviaList leadingTrivia,
+        IMethodSymbol methodSymbol,
+        AttributeData attributeData)
     {
         // Get the command member names
         (string fieldName, string propertyName) = GetGeneratedFieldAndPropertyNames(context, methodSymbol);
@@ -185,13 +190,37 @@ public sealed partial class ICommandGenerator : ISourceGenerator
             }
         }
 
+        // Prepare the command creation expression. The basic initialization is as follows:
+        //
+        // new <RELAY_COMMAND_TYPE>(new <DELEGATE_TYPE>(<METHOD_NAME>));
+        ObjectCreationExpressionSyntax commandInitialization =
+            ObjectCreationExpression(IdentifierName(commandClassTypeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)))
+            .AddArgumentListArguments(Argument(
+                ObjectCreationExpression(IdentifierName(delegateTypeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)))
+                .AddArgumentListArguments(Argument(IdentifierName(methodSymbol.Name)))));
+
+        // If the current type is an async command type and concurrent execution is disabled, pass that value to the constructor.
+        // If concurrent executions are allowed, there is no need to add any additional argument, as that is the default value.
+        if (commandClassTypeSymbol.Name is "AsyncRelayCommand" or "AsyncRelayCommand`1")
+        {
+            if (attributeData.TryGetNamedArgument("AllowConcurrentExecutions", out bool allowConcurrentExecutions) &&
+                !allowConcurrentExecutions)
+            {
+                commandInitialization = commandInitialization.AddArgumentListArguments(Argument(LiteralExpression(SyntaxKind.FalseLiteralExpression)));
+            }
+        }
+        else if (attributeData.TryGetNamedArgument("AllowConcurrentExecutions", out bool _))
+        {
+            context.ReportDiagnostic(InvalidConcurrentExecutionsParameterError, methodSymbol, methodSymbol.ContainingType, methodSymbol);
+        }
+
         // Construct the generated property as follows (the explicit delegate cast is needed to avoid overload resolution conflicts):
         //
         // <METHOD_SUMMARY>
         // [global::System.CodeDom.Compiler.GeneratedCode("...", "...")]
         // [global::System.Diagnostics.DebuggerNonUserCode]
         // [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
-        // public <COMMAND_TYPE> <COMMAND_PROPERTY_NAME> => <COMMAND_FIELD_NAME> ??= new <RELAY_COMMAND_TYPE>(new <DELEGATE_TYPE>(<METHOD_NAME>));
+        // public <COMMAND_TYPE> <COMMAND_PROPERTY_NAME> => <COMMAND_FIELD_NAME> ??= <COMMAND_INITIALIZATION_EXPRESSION>;
         PropertyDeclarationSyntax propertyDeclaration =
             PropertyDeclaration(
                 IdentifierName(commandInterfaceTypeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)),
@@ -206,15 +235,7 @@ public sealed partial class ICommandGenerator : ISourceGenerator
                 .WithOpenBracketToken(Token(summaryTrivia, SyntaxKind.OpenBracketToken, TriviaList())),
                 AttributeList(SingletonSeparatedList(Attribute(IdentifierName("global::System.Diagnostics.DebuggerNonUserCode")))),
                 AttributeList(SingletonSeparatedList(Attribute(IdentifierName("global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage")))))
-            .WithExpressionBody(
-                ArrowExpressionClause(
-                    AssignmentExpression(
-                        SyntaxKind.CoalesceAssignmentExpression,
-                        IdentifierName(fieldName),
-                        ObjectCreationExpression(IdentifierName(commandClassTypeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)))
-                        .AddArgumentListArguments(Argument(
-                            ObjectCreationExpression(IdentifierName(delegateTypeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)))
-                            .AddArgumentListArguments(Argument(IdentifierName(methodSymbol.Name))))))))
+            .WithExpressionBody(ArrowExpressionClause(AssignmentExpression(SyntaxKind.CoalesceAssignmentExpression, IdentifierName(fieldName), commandInitialization)))
             .WithSemicolonToken(Token(SyntaxKind.SemicolonToken));
 
         return new MemberDeclarationSyntax[] { fieldDeclaration, propertyDeclaration };

@@ -207,9 +207,6 @@ internal static class DiagnosticDescriptors
 
     /// <summary>
     /// Gets a <see cref="DiagnosticDescriptor"/> indicating when an unsupported C# language version is being used.
-    /// <para>
-    /// Format: <c>"The method {0}.{1} cannot be used to generate a command property, as its signature isn't compatible with any of the existing relay command types"</c>.
-    /// </para>
     /// </summary>
     public static readonly DiagnosticDescriptor UnsupportedCSharpLanguageVersionError = new(
         id: "MVVMTK0013",
@@ -219,5 +216,21 @@ internal static class DiagnosticDescriptors
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "The source generator features from the MVVM Toolkit require consuming projects to set the C# language version to at least C# 9.0. Make sure to add <LangVersion>9.0</LangVersion> (or above) to your .csproj file.",
+        helpLinkUri: "https://aka.ms/mvvmtoolkit");
+
+    /// <summary>
+    /// Gets a <see cref="DiagnosticDescriptor"/> indicating when <c>ICommandAttribute.AllowConcurrentExecutions</c> is being set for a non-asynchronous method.
+    /// <para>
+    /// Format: <c>"The method {0}.{1} cannot be annotated with the [ICommand] attribute specifying a concurrency control setting, as it maps to a non-asynchronous command type"</c>.
+    /// </para>
+    /// </summary>
+    public static readonly DiagnosticDescriptor InvalidConcurrentExecutionsParameterError = new(
+        id: "MVVMTK0014",
+        title: "Invalid concurrency control setting usage",
+        messageFormat: "The method {0}.{1} cannot be annotated with the [ICommand] attribute specifying a concurrency control setting, as it maps to a non-asynchronous command type",
+        category: typeof(ICommandGenerator).FullName,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Cannot apply the [ICommand] attribute specifying a concurrency control setting to methods mapping to non-asynchronous command types.",
         helpLinkUri: "https://aka.ms/mvvmtoolkit");
 }

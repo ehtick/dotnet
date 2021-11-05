@@ -31,7 +31,7 @@ namespace CommunityToolkit.Mvvm.Input;
 /// <code>
 /// partial class MyViewModel
 /// {
-///     private IRelayCommand? greetUserCommand;
+///     private RelayCommand? greetUserCommand;
 ///
 ///     public IRelayCommand GreetUserCommand => greetUserCommand ??= new RelayCommand(GreetUser);
 /// }
@@ -62,4 +62,12 @@ namespace CommunityToolkit.Mvvm.Input;
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
 public sealed class ICommandAttribute : Attribute
 {
+    /// <summary>
+    /// Gets or sets a value indicating whether or not to allow concurrent executions for an asynchronous command.
+    /// When set for an attribute used on a method that would result in an <see cref="AsyncRelayCommand"/> or an
+    /// <see cref="AsyncRelayCommand{T}"/> property to be generated, this will modify the behavior of these commands
+    /// when an execution is invoked while a previous one is still running. It is the same as creating an instance of
+    /// these command types with a constructor such as <see cref="AsyncRelayCommand(Func{System.Threading.Tasks.Task}, bool)"/>.
+    /// </summary>
+    public bool AllowConcurrentExecutions { get; set; } = true;
 }
