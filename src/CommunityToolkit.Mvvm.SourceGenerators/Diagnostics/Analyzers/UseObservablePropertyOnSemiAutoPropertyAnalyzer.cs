@@ -55,7 +55,11 @@ public sealed class UseObservablePropertyOnSemiAutoPropertyAnalyzer : Diagnostic
         {
             // Using [ObservableProperty] on partial properties is only supported when using C# preview.
             // As such, if that is not the case, return immediately, as no diagnostic should be produced.
+#if ROSLYN_5_0_0_OR_GREATER
+            if (!context.Compilation.HasLanguageVersionAtLeastEqualTo(LanguageVersion.CSharp14))
+#else
             if (!context.Compilation.IsLanguageVersionPreview())
+#endif
             {
                 return;
             }

@@ -11,6 +11,9 @@ using System.Linq;
 using System.Threading;
 using CommunityToolkit.Mvvm.SourceGenerators.Extensions;
 using Microsoft.CodeAnalysis;
+#if ROSLYN_5_0_0_OR_GREATER
+using Microsoft.CodeAnalysis.CSharp;
+#endif
 using Microsoft.CodeAnalysis.Diagnostics;
 using static CommunityToolkit.Mvvm.SourceGenerators.Diagnostics.DiagnosticDescriptors;
 
@@ -78,9 +81,13 @@ public sealed class WinRTObservablePropertyOnFieldsIsNotAotCompatibleAnalyzer : 
                 }
             }, SymbolKind.Field);
 
-            // If C# preview is already in use, we can stop here. The last diagnostic is only needed when partial properties
+            // If C# is version 14.0 or above, we can stop here. The last diagnostic is only needed when partial properties
             // cannot be used, to inform developers that they'll need to bump the language version to enable the code fixer.
+#if ROSLYN_5_0_0_OR_GREATER
+            if (context.Compilation.HasLanguageVersionAtLeastEqualTo(LanguageVersion.CSharp14))
+#else
             if (context.Compilation.IsLanguageVersionPreview())
+#endif
             {
                 return;
             }

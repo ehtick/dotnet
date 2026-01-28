@@ -8,6 +8,9 @@ using System.Collections.Immutable;
 using System.Linq;
 using CommunityToolkit.Mvvm.SourceGenerators.Extensions;
 using Microsoft.CodeAnalysis;
+#if ROSLYN_5_0_0_OR_GREATER
+using Microsoft.CodeAnalysis.CSharp;
+#endif
 using Microsoft.CodeAnalysis.Diagnostics;
 using static CommunityToolkit.Mvvm.SourceGenerators.Diagnostics.DiagnosticDescriptors;
 
@@ -30,9 +33,13 @@ public sealed class UseObservablePropertyOnPartialPropertyAnalyzer : DiagnosticA
 
         context.RegisterCompilationStartAction(static context =>
         {
-            // Using [ObservableProperty] on partial properties is only supported when using C# preview.
+            // Using [ObservableProperty] on partial properties is only supported without C# 14.0 or above.
             // As such, if that is not the case, return immediately, as no diagnostic should be produced.
+#if ROSLYN_5_0_0_OR_GREATER
+            if (!context.Compilation.HasLanguageVersionAtLeastEqualTo(LanguageVersion.CSharp14))
+#else
             if (!context.Compilation.IsLanguageVersionPreview())
+#endif
             {
                 return;
             }
