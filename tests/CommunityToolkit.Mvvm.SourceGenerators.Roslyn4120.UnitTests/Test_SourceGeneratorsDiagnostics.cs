@@ -188,6 +188,27 @@ partial class Test_SourceGeneratorsDiagnostics
         await VerifyAnalyzerDiagnosticsAndSuccessfulGeneration<UseObservablePropertyOnPartialPropertyAnalyzer>(source, LanguageVersion.Preview);
     }
 
+#if ROSLYN_5_0_0_OR_GREATER
+    [TestMethod]
+    public async Task UseObservablePropertyOnPartialPropertyAnalyzer_LanguageVersionIsCSharp14_Warns()
+    {
+        const string source = """
+            using CommunityToolkit.Mvvm.ComponentModel;
+            
+            namespace MyApp
+            {
+                public partial class SampleViewModel : ObservableObject
+                {            
+                    [ObservableProperty]
+                    private string {|MVVMTK0042:name|};
+                }
+            }
+            """;
+
+        await VerifyAnalyzerDiagnosticsAndSuccessfulGeneration<UseObservablePropertyOnPartialPropertyAnalyzer>(source, LanguageVersion.CSharp14);
+    }
+#endif
+
     [TestMethod]
     public async Task UseObservablePropertyOnPartialPropertyAnalyzer_LanguageVersionIsPreview_OnPartialProperty_DoesNotWarn()
     {
@@ -502,6 +523,30 @@ partial class Test_SourceGeneratorsDiagnostics
             LanguageVersion.Preview,
             editorconfig: [("_MvvmToolkitIsUsingWindowsRuntimePack", true), ("CsWinRTAotOptimizerEnabled", "auto")]);
     }
+
+#if ROSLYN_5_0_0_OR_GREATER
+    [TestMethod]
+    public async Task WinRTObservablePropertyOnFieldsIsNotAotCompatibleAnalyzer_TargetingWindows_CsWinRTAotOptimizerEnabled_Auto_LanguageVersionIsCSharp14_Warns()
+    {
+        const string source = """
+            using CommunityToolkit.Mvvm.ComponentModel;
+            
+            namespace MyApp
+            {
+                public partial class SampleViewModel : ObservableObject
+                {            
+                    [ObservableProperty]
+                    private string {|MVVMTK0045:name|};
+                }
+            }
+            """;
+
+        await CSharpAnalyzerWithLanguageVersionTest<WinRTObservablePropertyOnFieldsIsNotAotCompatibleAnalyzer>.VerifyAnalyzerAsync(
+            source,
+            LanguageVersion.CSharp14,
+            editorconfig: [("_MvvmToolkitIsUsingWindowsRuntimePack", true), ("CsWinRTAotOptimizerEnabled", "auto")]);
+    }
+#endif
 
     [TestMethod]
     public async Task WinRTObservablePropertyOnFieldsIsNotAotCompatibleAnalyzer_TargetingWindows_CsWinRTAotOptimizerEnabled_Auto_NotCSharpPreview_Warns_WithCompilationWarning()
@@ -1470,6 +1515,29 @@ partial class Test_SourceGeneratorsDiagnostics
 
         await CSharpAnalyzerWithLanguageVersionTest<UseObservablePropertyOnSemiAutoPropertyAnalyzer>.VerifyAnalyzerAsync(source, LanguageVersion.Preview);
     }
+
+#if ROSLYN_5_0_0_OR_GREATER
+    [TestMethod]
+    public async Task UseObservablePropertyOnSemiAutoPropertyAnalyzer_ValidProperty_LanguageVersionIsCSharp14_Warns()
+    {
+        const string source = """
+            using CommunityToolkit.Mvvm.ComponentModel;
+            
+            namespace MyApp;
+
+            public partial class SampleViewModel : ObservableObject
+            {
+                public string {|MVVMTK0056:Name|}
+                {
+                    get => field;
+                    set => SetProperty(ref field, value);
+                }
+            }
+            """;
+
+        await CSharpAnalyzerWithLanguageVersionTest<UseObservablePropertyOnSemiAutoPropertyAnalyzer>.VerifyAnalyzerAsync(source, LanguageVersion.CSharp14);
+    }
+#endif
 
     [TestMethod]
     public async Task UseObservablePropertyOnSemiAutoPropertyAnalyzer_ValidProperty_WithModifiers_Warns()
